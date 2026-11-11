@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% block content %}
+<h2>{{ title }}</h2>
+<form method="post">
+<label>First name</label><input name="first_name" value="{{ s.first_name or '' }}" required>
+<label>Last name</label><input name="last_name" value="{{ s.last_name or '' }}" required>
+<label>Email</label><input type="email" name="email" value="{{ s.email or '' }}" required>
+<label>Phone</label><input name="phone" value="{{ s.phone or '' }}">
+<label>Date of birth</label><input type="date" name="date_of_birth" value="{{ s.date_of_birth or '' }}">
+<button class="btn">Save</button> <a href="/students">Cancel</a>
+</form>{% endblock %}
