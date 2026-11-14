@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% block content %}
+<h2>Report: Students in a Course</h2>
+<form method="get" class="toolbar"><select name="course_id" required><option value="">Select course</option>
+{% for c in courses %}<option value="{{ c.course_id }}" {{ 'selected' if cid == c.course_id|string }}>{{ c.course_code }} - {{ c.course_name }}</option>{% endfor %}</select>
+<button class="btn">Show report</button></form>
+{% if course %}
+<p><b>{{ course.course_code }} - {{ course.course_name }}</b> ({{ course.credits }} credits) &middot; {{ rows|length }} student(s) enrolled</p>
+<p class="actions"><a class="btn ghost" href="/reports/course?course_id={{ course.course_id }}&format=csv">Download CSV</a>
+<a class="btn" href="/courses/{{ course.course_id }}/insights">AI Insights</a></p>
+<div class="table-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Enrolled on</th><th>Grade</th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.student_id }}</td><td>{{ r.first_name }} {{ r.last_name }}</td><td>{{ r.email }}</td><td>{{ r.enrollment_date }}</td><td>{{ r.grade or '-' }}</td></tr>
+{% else %}<tr><td colspan="5">No students are enrolled in this course.</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}{% endblock %}

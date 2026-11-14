@@ -1,10 +1,10 @@
 {% extends "base.html" %}{% block content %}
 <h2>{{ title }}</h2>
-<form method="post">
-<label>First name</label><input name="first_name" value="{{ s.first_name or '' }}" required>
-<label>Last name</label><input name="last_name" value="{{ s.last_name or '' }}" required>
-<label>Email</label><input type="email" name="email" value="{{ s.email or '' }}" required>
-<label>Phone</label><input name="phone" value="{{ s.phone or '' }}">
-<label>Date of birth</label><input type="date" name="date_of_birth" value="{{ s.date_of_birth or '' }}">
-<button class="btn">Save</button> <a href="/students">Cancel</a>
+<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="two-col"><div><label>First name</label><input name="first_name" value="{{ s.first_name or '' }}" required></div>
+<div><label>Last name</label><input name="last_name" value="{{ s.last_name or '' }}" required></div>
+<div><label>Email</label><input type="email" name="email" value="{{ s.email or '' }}" required></div>
+<div><label>Phone</label><input name="phone" value="{{ s.phone or '' }}"></div>
+<div><label>Date of birth</label><input type="date" name="date_of_birth" value="{{ s.date_of_birth or '' }}"></div></div>
+<div class="actions"><button class="btn">Save</button><a class="btn ghost" href="/students">Cancel</a></div>
 </form>{% endblock %}

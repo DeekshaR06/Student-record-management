@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block content %}
+<h2>AI insights: {{ course.course_code }} - {{ course.course_name }}</h2>
+{% if insight %}
+{% for s in sections %}<div class="ai-sec">{% if s.title %}<b>{{ s.title }}</b>{% endif %}<p>{{ s.body }}</p></div>{% endfor %}
+{% if sources %}<h3>Sources</h3><ul class="small">{% for s in sources %}<li><a href="{{ s.url }}" target="_blank" rel="noopener noreferrer">{{ s.title }}</a></li>{% endfor %}</ul>{% endif %}
+<p class="muted small">Generated {{ insight.generated_at }} UTC by {{ insight.model }}. Live web search used: {{ 'yes' if insight.grounded else 'no (model knowledge only)' }}. AI-generated and may be inaccurate. Only the course name was sent to the AI service.</p>
+{% if is_admin %}<form method="post" onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='Generating...'"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="refresh" value="1"><button class="btn">Refresh insights</button></form>{% endif %}
+{% else %}
+<p>No insights have been generated for this course yet.</p>
+<form method="post" onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='Generating... please wait'"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn">Generate AI insights</button></form>
+<p class="muted small">This sends only the course name to an external AI service and can take up to 40 seconds.</p>
+{% endif %}
+<p><a href="/courses">&larr; Back to courses</a></p>
+{% endblock %}

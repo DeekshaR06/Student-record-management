@@ -1,14 +1,17 @@
 {% extends "base.html" %}{% block content %}
 <h2>Enrollments</h2>
-<form method="post">
+{% if is_admin %}<form method="post" class="grid-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <select name="student_id" required><option value="">Select student</option>
 {% for s in students %}<option value="{{ s.student_id }}">{{ s.first_name }} {{ s.last_name }}</option>{% endfor %}</select>
 <select name="course_id" required><option value="">Select course</option>
 {% for c in courses %}<option value="{{ c.course_id }}">{{ c.course_code }} - {{ c.course_name }}</option>{% endfor %}</select>
 <input name="grade" maxlength="2" placeholder="Grade (optional)">
-<button class="btn">Enroll</button></form>
-<table><tr><th>Student</th><th>Course</th><th>Date</th><th>Grade</th><th></th></tr>
+<button class="btn">Enroll</button></form>{% endif %}
+<div class="table-wrap"><table><thead><tr><th>Student</th><th>Course</th><th>Date</th><th>Grade</th>{% if is_admin %}<th></th>{% endif %}</tr></thead><tbody>
 {% for r in rows %}<tr><td>{{ r.first_name }} {{ r.last_name }}</td><td>{{ r.course_code }} - {{ r.course_name }}</td>
-<td>{{ r.enrollment_date }}</td><td>{{ r.grade or '-' }}</td>
-<td><form class="inline" method="post" action="/enrollments/{{ r.enrollment_id }}/delete"><button class="btn del">Remove</button></form></td></tr>{% endfor %}</table>
+<td>{{ r.enrollment_date }}</td>
+{% if is_admin %}<td><form class="grade-form" method="post" action="/enrollments/{{ r.enrollment_id }}/grade"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<input name="grade" value="{{ r.grade or '' }}" maxlength="2"><button class="btn">Save</button></form></td>
+<td><form class="inline" method="post" action="/enrollments/{{ r.enrollment_id }}/delete"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn del">Remove</button></form></td>
+{% else %}<td>{{ r.grade or '-' }}</td>{% endif %}</tr>{% endfor %}</tbody></table></div>
 {% endblock %}

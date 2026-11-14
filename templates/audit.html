@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block content %}
+<h2>Audit log</h2>
+<form method="get" class="toolbar">
+<input name="username" value="{{ f.username }}" placeholder="User">
+<select name="action"><option value="">Any action</option>{% for a in actions %}<option {{ 'selected' if f.action == a }}>{{ a }}</option>{% endfor %}</select>
+<select name="entity"><option value="">Any record type</option>{% for e in entities %}<option {{ 'selected' if f.entity == e }}>{{ e }}</option>{% endfor %}</select>
+<button class="btn">Filter</button>
+<a class="btn ghost" href="/audit?username={{ f.username }}&action={{ f.action }}&entity={{ f.entity }}&format=csv">CSV</a></form>
+<p class="muted small">Newest first, up to 500 rows. Times are UTC.</p>
+<div class="table-wrap"><table><thead><tr><th>Time</th><th>User</th><th>Action</th><th>Record</th><th>Details</th><th>IP</th></tr></thead><tbody>
+{% for r in rows %}<tr><td class="small">{{ r.created_at }}</td><td>{{ r.username or '-' }}</td><td><span class="pill {{ r.action|lower }}">{{ r.action }}</span></td>
+<td>{{ r.entity or '' }} {{ r.entity_id or '' }}</td><td class="small">{{ r.details or '' }}</td><td class="small">{{ r.ip_address or '' }}</td></tr>
+{% else %}<tr><td colspan="6">No matching entries.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

@@ -31,10 +31,47 @@ CREATE TABLE enrollments (
     enrollment_date DATE NOT NULL DEFAULT (CURRENT_DATE),
     grade           CHAR(2),
     CONSTRAINT fk_enr_student FOREIGN KEY (student_id)
-        REFERENCES students(student_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        REFERENCES students(student_id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT fk_enr_course FOREIGN KEY (course_id)
-        REFERENCES courses(course_id) ON DELETE CASCADE ON UPDATE CASCADE,
+        REFERENCES courses(course_id) ON DELETE RESTRICT ON UPDATE CASCADE,
     CONSTRAINT uq_student_course UNIQUE (student_id, course_id)
+) ENGINE=InnoDB;
+
+-- 4. Users and audit log (login, roles, change tracking)
+CREATE TABLE IF NOT EXISTS users (
+    user_id       INT AUTO_INCREMENT PRIMARY KEY,
+    username      VARCHAR(30)  NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role          ENUM('admin','viewer') NOT NULL DEFAULT 'viewer',
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- No foreign key to users on purpose: audit history must survive user deletion
+CREATE TABLE IF NOT EXISTS audit_log (
+    log_id     BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT NULL,
+    username   VARCHAR(50),
+    action     VARCHAR(20) NOT NULL,
+    entity     VARCHAR(20),
+    entity_id  INT,
+    details    TEXT,
+    ip_address VARCHAR(45),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_audit_time (created_at),
+    INDEX idx_audit_user (username),
+    INDEX idx_audit_action (action)
+) ENGINE=InnoDB;
+
+-- 5. Cached AI course insights
+CREATE TABLE IF NOT EXISTS course_insights (
+    course_id    INT PRIMARY KEY,
+    insight      TEXT NOT NULL,
+    sources      TEXT,
+    model        VARCHAR(60),
+    grounded     TINYINT(1) NOT NULL DEFAULT 0,
+    generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_insight_course FOREIGN KEY (course_id)
+        REFERENCES courses(course_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
 -- Sample data

@@ -1,0 +1,17 @@
+{% extends "base.html" %}{% block content %}
+<h2>Dashboard</h2>
+<div class="stats">
+<div class="stat navy"><span class="ico">&#127891;</span><b>{{ counts.students }}</b><span>Students</span></div>
+<div class="stat coral"><span class="ico">&#128218;</span><b>{{ counts.courses }}</b><span>Courses</span></div>
+<div class="stat sand"><span class="ico">&#128221;</span><b>{{ counts.enrollments }}</b><span>Enrollments</span></div>
+</div>
+<h3>Enrollments per course</h3>
+{% set mx = (popular | map(attribute='total') | list | max) if popular else 0 %}
+{% for r in popular %}
+<div class="bar-row"><span>{{ r.course_code }} - {{ r.course_name }}</span>
+<div class="bar"><span style="width: {{ ((r.total / mx * 100) if mx else 0) | round(1) }}%"></span></div><b>{{ r.total }}</b></div>
+{% else %}<p class="muted">No courses yet.</p>{% endfor %}
+<h3>Students with no enrollments</h3>
+{% if idle %}<div class="chips">{% for s in idle %}<span class="chip">{{ s.student_id }} &middot; {{ s.first_name }} {{ s.last_name }}</span>{% endfor %}</div>
+{% else %}<p class="muted">Every student is enrolled in at least one course.</p>{% endif %}
+{% endblock %}

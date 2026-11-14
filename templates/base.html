@@ -1,17 +1,40 @@
-<!doctype html>
-<html><head><meta charset="utf-8"><title>Student Record Management</title>
-<style>
-body{font-family:system-ui,sans-serif;margin:0;background:#f4f6f8}
-nav{background:#1f3a5f;padding:12px 24px}nav a{color:#fff;margin-right:20px;text-decoration:none}
-main{max-width:900px;margin:24px auto;background:#fff;padding:24px;border-radius:8px}
-table{width:100%;border-collapse:collapse}th,td{padding:8px;border-bottom:1px solid #ddd;text-align:left}
-input,select{padding:7px;margin:4px 0 10px;width:100%;box-sizing:border-box}
-.btn{background:#1f3a5f;color:#fff;border:0;padding:7px 14px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-block;width:auto;font-size:14px}
-.del{background:#b00020}.msg{background:#e8f0fe;padding:8px 12px;margin-bottom:12px;border-radius:4px}
-form.inline{display:inline}
-</style></head><body>
-<nav><a href="/students">Students</a><a href="/courses">Courses</a><a href="/enrollments">Enrollments</a></nav>
-<main>
+{% set p = request.path %}<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Student Record Management{% endblock %}</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#127891;</text></svg>">
+<link rel="stylesheet" href="/static/style.css?v=2">
+</head>
+<body class="{% block bodyclass %}{% endblock %}">
+{% if current_user %}
+<header class="topbar">
+<a class="brand" href="/">&#127891; <span>Student Records</span></a>
+<nav class="nav">
+<a href="/" class="{{ 'active' if p == '/' }}">Dashboard</a>
+<a href="/students" class="{{ 'active' if p.startswith('/students') }}">Students</a>
+<a href="/courses" class="{{ 'active' if p.startswith('/courses') }}">Courses</a>
+<a href="/enrollments" class="{{ 'active' if p.startswith('/enrollments') }}">Enrollments</a>
+<details class="dd {{ 'active' if p.startswith('/reports') }}"><summary>Reports</summary>
+<div class="dd-menu"><a href="/reports/student">Courses of a student</a><a href="/reports/course">Students in a course</a></div></details>
+{% if is_admin %}<a href="/users" class="{{ 'active' if p.startswith('/users') }}">Users</a>
+<a href="/audit" class="{{ 'active' if p.startswith('/audit') }}">Audit Log</a>{% endif %}
+</nav>
+<div class="usermenu">
+<span class="role {{ 'admin' if is_admin else 'viewer' }}">{{ 'ADMIN' if is_admin else 'VIEWER' }}</span>
+<details class="dd right"><summary>{{ current_user }}</summary>
+<div class="dd-menu"><a href="/account/password">Change password</a>
+<form method="post" action="/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button>Logout</button></form></div></details>
+</div>
+</header>
+{% endif %}
+<main class="container">
 {% for m in get_flashed_messages() %}<div class="msg">{{ m }}</div>{% endfor %}
 {% block content %}{% endblock %}
-</main></body></html>
+</main>
+<div class="foot">Student Record Management &middot; Cloud Computing project &middot; AWS EC2 + RDS</div>
+<script>
+document.addEventListener('click', function (e) {
+  document.querySelectorAll('details.dd[open]').forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute('open'); });
+});
+</script>
+</body></html>

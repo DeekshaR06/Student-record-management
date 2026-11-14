@@ -1,11 +1,12 @@
 {% extends "base.html" %}{% block content %}
 <h2>Courses</h2>
-<form method="post"><input name="course_code" placeholder="Code (e.g. CS401)" required>
+{% if is_admin %}<form method="post" class="grid-form"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input name="course_code" placeholder="Code (e.g. CS401)" required>
 <input name="course_name" placeholder="Course name" required>
 <input type="number" name="credits" min="1" max="10" placeholder="Credits" required>
-<button class="btn">Add Course</button></form>
-<table><tr><th>Code</th><th>Name</th><th>Credits</th><th></th></tr>
-{% for r in rows %}<tr><td>{{ r.course_code }}</td><td>{{ r.course_name }}</td><td>{{ r.credits }}</td>
-<td><form class="inline" method="post" action="/courses/{{ r.course_id }}/delete" onsubmit="return confirm('Delete course and its enrollments?')">
-<button class="btn del">Delete</button></form></td></tr>{% endfor %}</table>
+<button class="btn">Add Course</button></form>{% endif %}
+<div class="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Credits</th><th>AI</th>{% if is_admin %}<th></th>{% endif %}</tr></thead><tbody>
+{% for r in rows %}<tr><td><b>{{ r.course_code }}</b></td><td>{{ r.course_name }}</td><td>{{ r.credits }}</td>
+<td><a class="btn ghost" href="/courses/{{ r.course_id }}/insights">AI Insights</a></td>
+{% if is_admin %}<td><form class="inline" method="post" action="/courses/{{ r.course_id }}/delete" onsubmit="return confirm('Delete this course?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<button class="btn del">Delete</button></form></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
 {% endblock %}
