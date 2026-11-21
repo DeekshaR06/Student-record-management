@@ -6,7 +6,8 @@
 <button class="btn">Add Course</button></form>{% endif %}
 <div class="table-wrap"><table><thead><tr><th>Code</th><th>Name</th><th>Credits</th><th>AI</th>{% if is_admin %}<th></th>{% endif %}</tr></thead><tbody>
 {% for r in rows %}<tr><td><b>{{ r.course_code }}</b></td><td>{{ r.course_name }}</td><td>{{ r.credits }}</td>
-<td><a class="btn ghost" href="/courses/{{ r.course_id }}/insights">AI Insights</a></td>
+<td>{% if r.has_insight %}<span class="pill create">Ready</span>{% else %}<span class="pill">Not generated</span>{% endif %}
+<a class="btn ghost" href="/courses/{{ r.course_id }}/insights">AI Insights</a></td>
 {% if is_admin %}<td><form class="inline" method="post" action="/courses/{{ r.course_id }}/delete" onsubmit="return confirm('Delete this course?')"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 <button class="btn del">Delete</button></form></td>{% endif %}</tr>{% endfor %}</tbody></table></div>
 {% endblock %}

@@ -70,7 +70,7 @@ tbody tr:hover td{background:#FFF1E6}
 .pill.create{background:#DDF3E7;color:#14573A}.pill.update{background:#DCE8FB;color:#1B3F7A}
 .pill.delete,.pill.ai_failed{background:#FBDADA;color:#8C1D18}
 .pill.login{background:#E8E4F7;color:#3D3380}.pill.logout{background:#EDEAE2;color:#555}
-.pill.login_failed,.pill.login_blocked{background:#FFE3C7;color:#8A4B00}
+.pill.login_failed,.pill.login_blocked,.pill.ai_blocked{background:#FFE3C7;color:#8A4B00}
 .pill.ai_insight{background:#EBDDF7;color:#5B2A86}
 .pill.admin{background:var(--coral);color:var(--navy)}.pill.viewer{background:var(--cream-2);color:var(--navy)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}.chip{background:var(--cream-2);border:1px solid var(--line);padding:4px 12px;border-radius:999px;font-size:13px}

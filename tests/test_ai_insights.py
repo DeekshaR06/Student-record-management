@@ -173,6 +173,8 @@ reset(); A.AI_DAILY_LIMIT = 1
 post(adm, "/courses/1/insights", ip="10.1.0.1")
 r = post(vw, "/courses/2/insights", ip="10.1.0.2")
 ok("daily limit protects free quota", b"daily AI request limit" in r.data and len(STATE["calls"]) == 1)
+blocked = lambda kind: A.query("SELECT COUNT(*) n FROM audit_log WHERE action='AI_BLOCKED' AND details LIKE %s", ("%" + kind + " limit%",), one=True)["n"]
+ok("blocked attempts are recorded for diagnosis", blocked("daily") >= 1 and blocked("hourly") >= 1)
 
 # ---- output is escaped
 reset(); STATE["text"] = "What it covers: <script>alert(1)</script> hello"
@@ -207,5 +209,63 @@ reset(); STATE["mode"] = "slow"; os.environ["AI_TIMEOUT"] = "1"
 t0 = time.time(); r = post(vw, "/courses/1/insights", ip="10.1.0.2")
 ok("slow AI gives a clear timeout message", b"took too long" in r.data and time.time() - t0 < 10)
 os.environ.pop("AI_TIMEOUT")
+# ---- automatic insights when a course is added
+def wait_for(cond, timeout=10):
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        if cond():
+            return True
+        time.sleep(0.2)
+    return False
+
+
+def add_course(client, code, name):
+    return post(client, "/courses", {"course_code": code, "course_name": name, "credits": "3"}, ip="10.1.0.1")
+
+
+def course_id(code):
+    return A.query("SELECT course_id FROM courses WHERE course_code=%s", (code,), one=True)["course_id"]
+
+
+reset(); A.AI_AUTO = True
+r = add_course(adm, "NEW1", "Quantum Computing"); c1 = course_id("NEW1")
+ok("adding a course says insights are being generated", b"Course added." in r.data and b"being generated" in r.data)
+ok("insight appears automatically in the background", wait_for(lambda: row(c1) is not None))
+a = A.query("SELECT * FROM audit_log WHERE action='AI_INSIGHT' AND entity_id=%s", (c1,), one=True)
+ok("auto insight is audited under the admin who added the course", a and a["username"] == "boss" and a["user_id"] is not None and '"auto": true' in a["details"])
+ok("one API round trip was enough", len(STATE["calls"]) == 1)
+pg = adm.get("/courses").get_data(as_text=True)
+ok("courses list shows Ready", "Ready" in pg)
+ok("insights page of the new course has content", "What it covers" in adm.get(f"/courses/{c1}/insights").get_data(as_text=True))
+
+reset(); A.AI_AUTO = False
+r = add_course(adm, "NEW2", "Robotics"); c2 = course_id("NEW2"); time.sleep(1)
+ok("auto-generation can be switched off", b"being generated" not in r.data and row(c2) is None and len(STATE["calls"]) == 0)
+pg = adm.get("/courses").get_data(as_text=True)
+ok("courses list shows Not generated", "Not generated" in pg)
+ok("manual generation still works for it", b"AI insights generated" in post(adm, f"/courses/{c2}/insights", ip="10.1.0.1").data and row(c2) is not None)
+A.AI_AUTO = True
+
+reset(); os.environ["GEMINI_API_KEY"] = ""
+r = add_course(adm, "NEW3", "Bioinformatics"); time.sleep(1)
+ok("no auto-generation without an API key", b"being generated" not in r.data and len(STATE["calls"]) == 0)
+os.environ["GEMINI_API_KEY"] = "testkey"
+
+reset(); A.AI_DAILY_LIMIT = 0
+r = add_course(adm, "NEW4", "Genomics"); time.sleep(1)
+ok("no auto-generation once the daily limit is reached", b"being generated" not in r.data and len(STATE["calls"]) == 0)
+
+reset(); STATE["mode"] = "quota"
+r = add_course(adm, "NEW5", "Astronomy"); c5 = course_id("NEW5")
+failed = lambda: A.query("SELECT * FROM audit_log WHERE action='AI_FAILED' AND entity_id=%s", (c5,), one=True)
+ok("failed auto-generation is logged and the course is still added", wait_for(lambda: failed() is not None) and row(c5) is None)
+ok("failure names the creator and is marked automatic", failed()["username"] == "boss" and '"auto": true' in failed()["details"])
+
+reset()
+r = add_course(adm, "NEW1", "Duplicate"); time.sleep(1)
+ok("duplicate course code starts no AI request", b"already exists" in r.data and len(STATE["calls"]) == 0)
+ok("viewer cannot add a course (and no AI request is made)", post(vw, "/courses", {"course_code": "V9", "course_name": "x", "credits": "1"}, ip="10.1.0.2").status_code == 403 and len(STATE["calls"]) == 0)
+ok("audit page shows the new AI_BLOCKED filter option", b"AI_BLOCKED" in adm.get("/audit").data)
+
 srv.shutdown()
 time.sleep(3)  # let the deliberately slow mock handlers finish

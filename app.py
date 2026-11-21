@@ -4,6 +4,7 @@ import json
 import os
 import re
 import secrets
+import threading
 from datetime import timedelta
 from functools import wraps
 
@@ -29,8 +30,9 @@ DUMMY_HASH = generate_password_hash("not-a-real-password")
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,30}$")
 MAX_FAILED_LOGINS = 5
 AI_USER_HOURLY_LIMIT = int(os.getenv("AI_USER_HOURLY_LIMIT", "5"))
-AI_DAILY_LIMIT = int(os.getenv("AI_DAILY_LIMIT", "20"))  # protects the free-tier quota
+AI_DAILY_LIMIT = int(os.getenv("AI_DAILY_LIMIT", "30"))  # protects the free-tier quota
 AI_CACHE_DAYS = int(os.getenv("AI_CACHE_DAYS", "30"))
+AI_AUTO = os.getenv("AI_AUTO_INSIGHTS", "1") == "1"  # generate insights when a course is added
 
 
 # ---------- Database helper ----------
@@ -67,11 +69,11 @@ def client_ip():
     return request.headers.get("X-Real-IP") or request.remote_addr
 
 
-def audit(action, entity=None, entity_id=None, details=None, username=None):
+def audit(action, entity=None, entity_id=None, details=None, username=None, user_id=None):
     if has_request_context():
         uid, uname = session.get("user_id"), username or session.get("username")
-    else:
-        uid, uname = None, username or "system"
+    else:  # background jobs and scripts pass the acting user explicitly
+        uid, uname = user_id, username or "system"
     query("INSERT INTO audit_log (user_id, username, action, entity, entity_id, details, ip_address) "
           "VALUES (%s,%s,%s,%s,%s,%s,%s)",
           (uid, (uname or "")[:50] or None, action, entity, entity_id,
@@ -328,11 +330,15 @@ def courses():
             cid = query("INSERT INTO courses (course_code,course_name,credits) VALUES (%s,%s,%s)",
                         (d["course_code"], d["course_name"], d["credits"]))
             audit("CREATE", "course", cid, d)
-            flash("Course added.")
+            started = start_auto_insight(cid, d["course_name"])
+            flash("Course added. AI insights are being generated and will be ready in about a minute."
+                  if started else "Course added.")
         except pymysql.err.IntegrityError:
             flash("Course code already exists.")
         return redirect(url_for("courses"))
-    return render_template("courses.html", rows=query("SELECT * FROM courses ORDER BY course_id"))
+    rows = query("SELECT c.*, (i.course_id IS NOT NULL) AS has_insight FROM courses c "
+                 "LEFT JOIN course_insights i ON i.course_id = c.course_id ORDER BY c.course_id")
+    return render_template("courses.html", rows=rows)
 
 
 @app.route("/courses/<int:cid>/delete", methods=["POST"])
@@ -439,6 +445,36 @@ def store_insight(cid, r):
           (cid, r["text"], json.dumps(r["sources"]), r["model"], int(r["grounded"])))
 
 
+def ai_configured():
+    key = "GROQ_API_KEY" if os.getenv("AI_PROVIDER", "gemini").lower() == "groq" else "GEMINI_API_KEY"
+    return bool(os.getenv(key))
+
+
+def _auto_insight(cid, name, user_id, username):
+    """Runs in a background thread: generate and save the insight for a newly added course."""
+    try:
+        if ai_attempts(24) >= AI_DAILY_LIMIT:
+            return
+        r = ai_insights.generate_insight(name)
+        store_insight(cid, r)
+        audit("AI_INSIGHT", "course", cid, {"model": r["model"], "web_search": r["grounded"], "auto": True},
+              username=username, user_id=user_id)
+    except ai_insights.AIError as e:
+        audit("AI_FAILED", "course", cid, {"reason": str(e), "auto": True}, username=username, user_id=user_id)
+    except Exception:
+        app.logger.exception("automatic AI insight failed for course %s", cid)
+
+
+def start_auto_insight(cid, name):
+    """Starts background generation if enabled, configured and under the daily limit. Returns the thread."""
+    if not (AI_AUTO and ai_configured()) or ai_attempts(24) >= AI_DAILY_LIMIT:
+        return None
+    t = threading.Thread(target=_auto_insight, args=(cid, name, session.get("user_id"), session.get("username")),
+                         daemon=True)
+    t.start()
+    return t
+
+
 @app.route("/courses/<int:cid>/insights", methods=["GET", "POST"])
 def course_insights(cid):
     course = query("SELECT * FROM courses WHERE course_id=%s", (cid,), one=True)
@@ -451,8 +487,10 @@ def course_insights(cid):
         if cached and cached["age_days"] < AI_CACHE_DAYS and not force:
             flash("Insights are already up to date.")
         elif ai_attempts(1, session["user_id"]) >= AI_USER_HOURLY_LIMIT:
+            audit("AI_BLOCKED", "course", cid, {"reason": "hourly limit reached"})
             flash(f"You have reached the limit of {AI_USER_HOURLY_LIMIT} AI requests per hour. Please try later.")
         elif ai_attempts(24) >= AI_DAILY_LIMIT:
+            audit("AI_BLOCKED", "course", cid, {"reason": "daily limit reached"})
             flash("The daily AI request limit has been reached. Please try again tomorrow.")
         else:
             try:
@@ -466,7 +504,8 @@ def course_insights(cid):
         return redirect(url_for("course_insights", cid=cid))
     sections = ai_insights.parse_sections(cached["insight"]) if cached else []
     return render_template("course_insights.html", course=course, insight=cached, sections=sections,
-                           sources=safe_sources(cached["sources"]) if cached else [])
+                           sources=safe_sources(cached["sources"]) if cached else [],
+                           auto_ai=AI_AUTO and ai_configured())
 
 
 # ---------- Reports ----------
@@ -540,7 +579,7 @@ def delete_user(uid):
 
 
 ACTIONS = ("CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT", "LOGIN_FAILED", "LOGIN_BLOCKED",
-           "AI_INSIGHT", "AI_FAILED")
+           "AI_INSIGHT", "AI_FAILED", "AI_BLOCKED")
 ENTITIES = ("student", "course", "enrollment", "user", "demo_data")
 
 

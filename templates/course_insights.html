@@ -9,6 +9,7 @@
 <p>No insights have been generated for this course yet.</p>
 <form method="post" onsubmit="var b=this.querySelector('button');b.disabled=true;b.textContent='Generating... please wait'"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn">Generate AI insights</button></form>
 <p class="muted small">This sends only the course name to an external AI service and can take up to 40 seconds.</p>
+{% if auto_ai %}<p class="muted small">Just added this course? Insights are generated automatically in the background and appear about a minute later. Refresh the page to check, or click the button.</p>{% endif %}
 {% endif %}
 <p><a href="/courses">&larr; Back to courses</a></p>
 {% endblock %}
